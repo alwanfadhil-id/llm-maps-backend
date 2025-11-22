@@ -60,7 +60,7 @@ Created as part of the HeyPico.ai technical test.
 
 ### 1. Clone the repository
 ```bash
-git clone <repository-url>
+git clone https://github.com/alwanfadhil-id/llm-maps-backend
 cd llm-maps-backend
 ```
 
