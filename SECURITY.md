@@ -86,13 +86,20 @@ const corsOptions = {
 ## 🔍 LLM Integration Security
 
 ### API Communication
-- **Local Communication**: LLM service communicates with Open WebUI via localhost
-- **Bearer Token Authentication**: Uses API key for authentication with Open WebUI
-- **Timeout Configuration**: Configurable request timeouts to prevent hanging connections
+- **Local Communication**: LLM service communicates with Open WebUI via internal network (Docker bridge or localhost)
+- **Authentication**: Uses `OPEN_WEBUI_API_KEY` for secure communication
+- **Timeout Configuration**: Configurable request timeouts (`LLM_TIMEOUT`) to prevent hanging connections
 
 ### Fallback Mechanism
 - **Graceful Degradation**: If Open WebUI is unavailable, falls back to basic query parsing
 - **Secure Fallback**: Fallback parser uses predefined patterns instead of executing arbitrary code
+
+## 📦 Container Security
+
+### Open WebUI Isolation
+- **Network Isolation**: Open WebUI runs in a separate container
+- **Least Privilege**: Container should run with minimal required permissions
+- **Volume Management**: Data persistence is handled via secure Docker volumes
 
 ## 📊 Data Protection
 
