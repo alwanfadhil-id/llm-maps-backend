@@ -2,6 +2,10 @@
 
 A Node.js backend application that integrates Large Language Models (LLMs) with Google Maps API to provide intelligent location search capabilities. Users can ask for places to visit, eat, or explore, and see the results on an interactive map.
 
+**Author**: Alwan Fadhil
+
+Created as part of the HeyPico.ai technical test.
+
 ## 🚀 Features
 
 - **LLM-Enhanced Search**: Natural language processing to understand user queries about places
@@ -36,7 +40,7 @@ A Node.js backend application that integrates Large Language Models (LLMs) with 
 ## 🛠️ Tech Stack
 
 - **Backend**: Node.js with Express.js
-- **LLM Integration**: Open WebUI (https://github.com/open-webui/open-webui) 
+- **LLM Integration**: Open WebUI (https://github.com/open-webui/open-webui)
 - **Maps API**: Google Maps Platform
 - **Frontend**: Pure HTML/CSS/JavaScript with Google Maps JavaScript API
 - **Testing**: Jest
