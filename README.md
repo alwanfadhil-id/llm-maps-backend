@@ -1,20 +1,23 @@
 # LLM Maps Backend
 
-A Node.js backend application that integrates Large Language Models (LLMs) with Google Maps API to provide intelligent location search capabilities. Users can ask for places to visit, eat, or explore, and see the results on an interactive map.
+A Node.js backend application that integrates Large Language Models (LLMs) with Google Maps API to provide intelligent location search capabilities. Users can ask for places to visit, eat, or explore in natural language, and see the results on an interactive map.
 
 **Author**: Alwan Fadhil
 
-Created as part of the HeyPico.ai technical test.
-
 ## 🚀 Features
 
-- **LLM-Enhanced Search**: Natural language processing to understand user queries about places
-- **Google Maps Integration**: Search for places, get directions, and view details
-- **Interactive Map Interface**: Web UI with embedded Google Maps
-- **Security**: Rate limiting, API key security, and CORS protection
-- **Responsive Design**: Works on desktop and mobile devices
+-   **LLM-Enhanced Search**: Uses a local LLM (via Open WebUI) to understand user intent and extract location data.
+-   **Robust Fallback Mechanism**: If the LLM is unavailable, the system automatically falls back to a keyword-based parser, ensuring the app never breaks.
+-   **Google Maps Integration**: Search for places, get directions, and view details with interactive markers.
+-   **Security**:
+    -   **Dual API Keys**: Separate Server Key (backend) and Client Key (frontend).
+    -   **Rate Limiting**: Protects against abuse.
+    -   **CORS**: Restricts access to authorized domains.
+-   **Responsive Design**: Works seamlessly on desktop and mobile.
 
 ## 🏗️ Architecture
+
+The project follows the **MVC (Model-View-Controller)** pattern:
 
 ```
 ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
@@ -24,39 +27,22 @@ Created as part of the HeyPico.ai technical test.
                         │
                         ▼
                 ┌─────────────┐
-                │   Open WebUI│
+                │   Open WebUI│───▶ Local Ollama
                 │   (LLM API) │
                 └─────────────┘
 ```
 
-### Core Components
-
-- **Frontend**: HTML/CSS/JavaScript demo interface
-- **Backend API**: Express.js server with REST endpoints
-- **LLM Service**: Connects to Open WebUI for natural language processing
-- **Google Maps Service**: Handles API calls to Google Maps
-- **Security Layer**: Rate limiting, CORS, and API key validation
-
-## 🛠️ Tech Stack
-
-- **Backend**: Node.js with Express.js
-- **LLM Integration**: Open WebUI (https://github.com/open-webui/open-webui)
-- **Maps API**: Google Maps Platform
-- **Frontend**: Pure HTML/CSS/JavaScript with Google Maps JavaScript API
-- **Testing**: Jest
-- **Security**: CORS, express-rate-limit
-
 ## 📋 Prerequisites
 
-- Node.js (v14 or higher)
-- Google Maps API Key with following APIs enabled:
-  - Places API
-  - Geocoding API
-  - Maps JavaScript API
-  - Directions API
-- Open WebUI instance (for LLM functionality)
+-   **Node.js** (v14 or higher)
+-   **Google Maps API Key** with the following APIs enabled:
+    -   Places API (New) or Places API (Legacy)
+    -   Maps JavaScript API
+    -   Directions API
+-   **Docker** (for running Open WebUI)
+-   **Ollama** (installed on host machine)
 
-## 🔧 Setup
+## 🔧 Setup Guide
 
 ### 1. Clone the repository
 ```bash
@@ -71,342 +57,104 @@ npm install
 
 ### 3. Environment Configuration
 
-Create a `.env` file in the root directory based on the `.env.example` file:
+Create a `.env` file based on `.env.example`:
 ```bash
 cp .env.example .env
 ```
 
-Then edit the `.env` file to add your actual API keys and configuration values:
+Edit `.env` and fill in your keys:
 ```env
-# Google Maps API Configuration
-GOOGLE_MAPS_API_KEY=your_server_api_key
-GOOGLE_MAPS_CLIENT_KEY=your_client_api_key
+# Google Maps
+GOOGLE_MAPS_API_KEY=your_server_key
+GOOGLE_MAPS_CLIENT_KEY=your_client_key
 
-# Server Configuration
-PORT=3001
-NODE_ENV=development
-
-# Security
-API_RATE_LIMIT=100
-ALLOWED_ORIGINS=http://localhost:3001,http://127.0.0.1:3001
-
-# Open WebUI Configuration
-OPEN_WEBUI_API_KEY=your_open_webui_api_key
-OPEN_WEBUI_MODEL=llama3
-LLM_TIMEOUT=30000
-MAX_RESULTS=10
-MAX_RETRIES=3
+# Open WebUI
+OPEN_WEBUI_API_KEY=your_generated_key
+OPEN_WEBUI_MODEL=llama2:7b  # Must match the model installed in Ollama
 ```
 
-### 4. Configure Google Maps API
+### 4. Setup Local LLM (Open WebUI + Ollama)
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project or select existing
-3. Enable the following APIs:
-   - Places API
-   - Geocoding API
-   - Maps JavaScript API
-   - Directions API
-4. Create two API keys:
-   - **Server Key**: For backend API calls (add IP restrictions)
-   - **Client Key**: For browser-based map rendering (add HTTP referrer restrictions)
+This project uses **Open WebUI** as the interface for the local LLM.
 
-### 5. Set up Open WebUI
+**Step A: Install & Configure Ollama**
+1.  Install Ollama from [ollama.com](https://ollama.com).
+2.  Pull a model (e.g., Llama 2):
+    ```bash
+    ollama pull llama2:7b
+    ```
+3.  **Important for Linux**: By default, Ollama only listens on localhost. To allow Docker to access it, you must bind it to `0.0.0.0`.
+    *   Create override directory: `sudo mkdir -p /etc/systemd/system/ollama.service.d`
+    *   Create configuration file:
+        ```bash
+        echo "[Service]" | sudo tee /etc/systemd/system/ollama.service.d/override.conf
+        echo "Environment=\"OLLAMA_HOST=0.0.0.0\"" | sudo tee -a /etc/systemd/system/ollama.service.d/override.conf
+        ```
+    *   Restart Ollama:
+        ```bash
+        sudo systemctl daemon-reload
+        sudo systemctl restart ollama
+        ```
 
-Open WebUI is required for the LLM functionality. Here are the detailed setup instructions:
+**Step B: Run Open WebUI via Docker**
+Run this command to start Open WebUI and connect it to your host's Ollama:
 
-#### Option A: Docker (Recommended)
 ```bash
-# Pull and run Open WebUI with specific configuration
-docker pull ghcr.io/open-webui/open-webui:main
-docker run -d -p 3000:8080 \
-  -e OLLAMA_BASE_URL=http://host.docker.internal:11434 \  # If using Ollama locally
+sudo docker run -d -p 3000:8080 \
+  --add-host=host.docker.internal:host-gateway \
   -v open-webui:/app/backend/data \
   --name open-webui \
   ghcr.io/open-webui/open-webui:main
 ```
 
-#### Option B: From Source
-```bash
-git clone https://github.com/open-webui/open-webui.git
-cd open-webui
-pip install -r requirements.txt
-python main.py
-```
+**Step C: Generate API Key**
+1.  Open `http://localhost:3000`.
+2.  Sign up / Login.
+3.  Go to **Settings > Account > API Keys**.
+4.  Create a key and copy it to your `.env` file (`OPEN_WEBUI_API_KEY`).
 
-#### Option C: Pre-built Binary
-1. Download the latest release from the [Open WebUI releases page](https://github.com/open-webui/open-webui/releases)
-2. Extract and run the binary:
-```bash
-./open-webui serve
-```
-
-#### Model Configuration
-
-**For Ollama (Recommended Free Option):**
-1. Install and start Ollama: `https://ollama.ai`
-2. Pull a suitable model:
-```bash
-ollama pull llama3
-# Or other models: llama2, mistral, phi3, etc.
-```
-3. Configure Open WebUI to use the local Ollama instance (usually auto-detected)
-
-**For OpenAI-Compatible APIs:**
-- Configure your API endpoint in Open WebUI settings
-- Set your API key in the Open WebUI interface
-
-#### API Key Setup
-1. Access Open WebUI web interface at `http://localhost:3000`
-2. Create an account or sign in
-3. Go to Settings → API → Create API Key
-4. Copy the API key and add it to your `.env` file as `OPEN_WEBUI_API_KEY`
-
-#### Model Selection
-1. In Open WebUI settings, select or create a model for the application
-2. Add the model name to your `.env` file as `OPEN_WEBUI_MODEL` (default: `llama3`)
-3. Recommended models: `llama3`, `llama2`, `mistral`, or any model capable of JSON output
-
-> **Note**: Open WebUI needs to run on port 3000 by default for the backend to connect properly
-
-### 6. Run the Application
+### 5. Run the Application
 
 ```bash
-# Development mode with auto-reload
+# Development mode
 npm run dev
 
 # Production mode
 npm start
 ```
 
-The server will start at `http://localhost:3001`
+Access the demo at: **http://localhost:3001/demo**
 
 ## 🌐 API Endpoints
 
-### Maps Endpoints
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/maps/search` | Search for places using natural language |
+| POST | `/api/maps/directions` | Get directions between two points |
+| GET | `/api/maps/places/:id` | Get detailed info about a place |
+| GET | `/api/config` | Get public configuration (Client Key) |
+| GET | `/health` | Server health check |
 
-- `GET /health` - Health check
-- `GET /api/config` - Get client configuration
-- `POST /api/maps/search` - Search for places
-- `POST /api/maps/directions` - Get directions between locations
-- `GET /api/maps/places/:placeId` - Get details of a specific place
-- `GET /demo` - Interactive demo interface
+## 🔧 Troubleshooting
 
-### Search Endpoint Details
+### "Model not found" Error
+*   **Cause**: The model name in `.env` (`OPEN_WEBUI_MODEL`) doesn't match what's installed in Ollama.
+*   **Fix**: Run `ollama list` to see installed models, then update `.env`.
 
-**POST /api/maps/search**
+### "Connection refused" / Open WebUI cannot see Ollama
+*   **Cause**: Ollama is bound to `127.0.0.1` on the host, so the Docker container can't reach it.
+*   **Fix**: Follow **Step A.3** in the Setup Guide to bind Ollama to `0.0.0.0`.
 
-Request body:
-```json
-{
-  "query": "best coffee shops in Manhattan",
-  "location": "Manhattan, NY",
-  "radius": 5000
-}
-```
-
-Response:
-```json
-{
-  "success": true,
-  "llmAnalysis": {
-    "intent": "search_places",
-    "category": "cafe",
-    "location": "Manhattan, NY",
-    "query": "best coffee shops"
-  },
-  "places": [
-    {
-      "id": "place_id",
-      "name": "Coffee Shop Name",
-      "address": "123 Street Name",
-      "rating": 4.5,
-      "location": {
-        "lat": 40.7128,
-        "lng": -74.0060
-      },
-      "mapsUrl": "https://www.google.com/maps/...",
-      "embedUrl": "https://www.google.com/maps/embed/..."
-    }
-  ],
-  "searchMetadata": {
-    "query": "best coffee shops in Manhattan",
-    "resultsCount": 5
-  }
-}
-```
-
-## 🔐 Security Best Practices
-
-### API Key Security
-- **Separate Keys**: Uses different API keys for server-side and client-side operations
-- **Restrictions**: Server key is restricted by IP, client key by HTTP referrer
-- **Environment Variables**: All sensitive keys stored in environment variables
-
-### Rate Limiting
-- **IP-based Rate Limiting**: Limits requests per IP address (configurable)
-- **Default**: 100 requests per 15 minutes per IP
-
-### CORS Protection
-- **Whitelisted Origins**: Only allows requests from specified domains
-- **Configurable**: Origins defined in environment variables
+### "Method Not Allowed (405)"
+*   **Cause**: Using the wrong API endpoint.
+*   **Fix**: Ensure you are using the latest version of this codebase which uses `/api/chat/completions`.
 
 ## 🧪 Testing
 
-Run the full test suite:
+Run the test suite using Jest:
 ```bash
 npm test
 ```
 
-Run tests in watch mode:
-```bash
-npm run test:watch
-```
-
-Run tests with coverage:
-```bash
-npm run test:coverage
-```
-
-## 🚀 Usage
-
-1. Start the backend server: `npm run dev`
-2. Start Open WebUI on port 3000
-3. Open the demo interface: `http://localhost:3001/demo`
-4. Ask natural language questions like:
-   - "Where can I find good Italian restaurants in London?"
-   - "Find parks to visit near Times Square"
-   - "Best coffee shops in San Francisco with high ratings"
-
-## 📊 API Usage Monitoring
-
-### Google Maps API
-- Monitor your API usage in the [Google Cloud Console](https://console.cloud.google.com/)
-- Set up billing alerts to avoid exceeding quotas
-- Different endpoints have different pricing models
-
-### Rate Limits
-- Adjust rate limits in `.env` file based on your application needs
-- Default is 100 requests per 15 minutes per IP
-
-## 🛡️ Security Considerations
-
-1. **API Key Management**:
-   - Regularly rotate API keys
-   - Use different keys for development and production
-   - Keep server keys secure and never expose them to the client
-
-2. **Rate Limiting**:
-   - Adjust limits based on expected usage
-   - Consider implementing user-based rate limiting for authenticated users
-
-3. **Input Validation**:
-   - All user inputs are validated before processing
-   - Query lengths and parameters are limited to prevent abuse
-
-## 🤖 LLM Integration
-
-The system integrates with Open WebUI to process natural language queries:
-
-1. User submits natural language query
-2. Query is sent to LLM via Open WebUI API
-3. LLM analyzes intent and refines search parameters
-4. Refined query is used with Google Maps API
-5. Results are returned with map URLs and embed links
-
-### LLM Prompt Engineering
-The system uses a structured system prompt to ensure consistent JSON responses from the LLM, making it easier to process results.
-
-## 🗺️ Map Features
-
-- **Interactive Markers**: Click markers to see place details
-- **Multiple Formats**: Get both embedded map URLs and Google Maps links
-- **Responsive Design**: Works on desktop and mobile devices
-- **Location-Based Search**: Search near specific locations or coordinates
-
-## 🐳 Docker Deployment (Optional)
-
-Build and run with Docker:
-```dockerfile
-# Dockerfile
-FROM node:18-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm install
-COPY . .
-EXPOSE 3001
-CMD ["npm", "start"]
-```
-
-```bash
-docker build -t llm-maps-backend .
-docker run -d -p 3001:3001 \
-  -e GOOGLE_MAPS_API_KEY=your_key \
-  -e GOOGLE_MAPS_CLIENT_KEY=your_client_key \
-  --name llm-maps \
-  llm-maps-backend
-```
-
-## 🔧 Troubleshooting
-
-### Common Issues
-
-1. **"API Key not valid" Error**:
-   - Check that your Google Maps API key is valid and has required APIs enabled
-   - Verify API key restrictions (IP/HTTP referrer)
-
-2. **Open WebUI Connection Issues**:
-   - Ensure Open WebUI is running on port 3000
-   - Check that `OPEN_WEBUI_API_KEY` is correctly set
-   - Verify the model specified in `OPEN_WEBUI_MODEL` is available
-
-3. **Rate Limiting**:
-   - Increase `API_RATE_LIMIT` in your `.env` file if needed
-   - Check if you're being blocked by Google Maps API rate limits
-
-4. **Map Not Loading**:
-   - Verify `GOOGLE_MAPS_CLIENT_KEY` is correctly set and has Maps JavaScript API enabled
-   - Check browser console for JavaScript errors
-
-### Debugging
-
-Enable detailed logging by setting environment variables:
-```env
-NODE_ENV=development
-DEBUG=llm-maps-*
-```
-
-## 📈 Performance Considerations
-
-- **Caching**: Consider implementing cache layers for frequently searched locations
-- **Pagination**: For large result sets, implement pagination
-- **Optimization**: Optimize images and static assets for faster loading
-- **Monitoring**: Set up monitoring for API response times and error rates
-
-## 🌐 Production Deployment
-
-1. Configure a reverse proxy (nginx/Apache)
-2. Set up SSL certificates
-3. Configure environment-specific variables
-4. Implement proper logging and monitoring
-5. Set up automatic restart on failure
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
 ## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🆘 Support
-
-For support, please create an issue in the GitHub repository with:
-- Detailed description of the problem
-- Steps to reproduce
-- Expected vs actual behavior
-- Environment information (OS, Node.js version, etc.)
+MIT License

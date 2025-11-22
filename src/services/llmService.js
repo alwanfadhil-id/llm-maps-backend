@@ -10,7 +10,7 @@ class LLMService {
   async processQuery(userQuery) {
     try {
       console.log('Sending query to LLM:', userQuery);
-      
+
       // Jika Open WebUI tidak tersedia, langsung return fallback
       if (!await this.isOpenWebUIAvailable()) {
         console.log('Open WebUI not available, using fallback parser');
@@ -35,7 +35,7 @@ If the query is not about places, respond with:
 
 Be concise and only respond with the JSON format.`;
 
-      const response = await axios.post(`${this.baseUrl}/api/chat`, {
+      const response = await axios.post(`${this.baseUrl}/api/chat/completions`, {
         model: process.env.OPEN_WEBUI_MODEL || "llama2",
         messages: [
           {
@@ -48,10 +48,8 @@ Be concise and only respond with the JSON format.`;
           }
         ],
         stream: false,
-        options: {
-          temperature: 0.1,
-          top_p: 0.9
-        }
+        temperature: 0.1,
+        top_p: 0.9
       }, {
         timeout: this.timeout,
         headers: {
@@ -86,9 +84,9 @@ Be concise and only respond with the JSON format.`;
   parseLLMResponse(llmResponse) {
     try {
       console.log('Raw LLM response structure:', Object.keys(llmResponse));
-      
+
       let content = '';
-      
+
       // Handle different response structures
       if (llmResponse.choices && llmResponse.choices[0] && llmResponse.choices[0].message) {
         content = llmResponse.choices[0].message.content;
@@ -120,9 +118,9 @@ Be concise and only respond with the JSON format.`;
 
   fallbackParse(userQuery) {
     console.log('Using fallback parser for query:', userQuery);
-    
+
     const lowerQuery = userQuery.toLowerCase();
-    
+
     const categories = {
       'restaurant': ['restaurant', 'eat', 'food', 'dinner', 'lunch', 'breakfast', 'makan', 'restoran', 'warung', 'kuliner'],
       'cafe': ['cafe', 'coffee', 'tea', 'kopi', 'kafe', 'kedai', 'warkop'],
@@ -142,7 +140,7 @@ Be concise and only respond with the JSON format.`;
 
     const locations = ['jakarta', 'bali', 'bandung', 'surabaya', 'yogyakarta', 'medan', 'semarang', 'manhattan', 'new york', 'london', 'paris', 'tokyo'];
     let detectedLocation = null;
-    
+
     for (const location of locations) {
       if (lowerQuery.includes(location)) {
         detectedLocation = location;
