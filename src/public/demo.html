@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Maps Integration Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.8;
+            font-size: 1.1em;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            min-height: 600px;
+            max-height: 80vh;
+            overflow: hidden;
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                grid-template-columns: 1fr;
+                height: auto;
+                min-height: auto;
+                max-height: none;
+                flex-direction: column;
+            }
+        }
+
+        .input-section {
+            padding: 30px;
+            background: #f8f9fa;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .output-section {
+            padding: 0;
+            position: relative;
+        }
+
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #e9ecef;
+            max-height: 400px;
+            min-height: 100px;
+            height: 100%;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 12px 16px;
+            border-radius: 10px;
+            max-width: 80%;
+        }
+
+        .user-message {
+            background: #007bff;
+            color: white;
+            margin-left: auto;
+        }
+
+        .bot-message {
+            background: #e9ecef;
+            color: #333;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        button {
+            padding: 12px 24px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+
+        .map-container {
+            height: 100%;
+            width: 100%;
+        }
+
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+
+        .place-card {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-left: 4px solid #007bff;
+        }
+
+        .place-name {
+            font-weight: bold;
+            font-size: 1.1em;
+            margin-bottom: 5px;
+        }
+
+        .place-address {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 8px;
+        }
+
+        .place-rating {
+            color: #ffc107;
+            font-weight: bold;
+        }
+
+        .map-link {
+            display: inline-block;
+            margin-top: 8px;
+            color: #007bff;
+            text-decoration: none;
+            font-size: 0.9em;
+        }
+
+        .map-link:hover {
+            text-decoration: underline;
+        }
+
+        .loading {
+            text-align: center;
+            color: #666;
+            padding: 20px;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🗺️ LLM Maps Assistant</h1>
+            <p>Ask for places to go, and see them on the map!</p>
+        </div>
+        
+        <div class="content">
+            <div class="input-section">
+                <div class="chat-container">
+                    <div class="chat-messages" id="chatMessages">
+                        <div class="message bot-message">
+                            Hello! I can help you find places to eat, visit, or explore. Try asking something like:<br><br>
+                            "Where can I find good coffee in Manhattan?"<br>
+                            "Italian restaurants near me"<br>
+                            "Parks to visit in London"
+                        </div>
+                    </div>
+                    
+                    <div class="input-group">
+                        <input type="text" id="userInput" placeholder="Ask about places to go, eat, or visit..." autocomplete="off" style="flex: 1;">
+                        <button onclick="sendMessage()" id="sendBtn" style="margin-left: 10px;">Send</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="output-section">
+                <div class="map-container">
+                    <div id="map">
+                        <div id="mapLoading" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(255,255,255,0.9); padding: 20px; border-radius: 8px; z-index: 1000;">
+                            <p style="margin: 0; text-align: center;">Loading map...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let map;
+        let markers = [];
+
+        // Add marker to map
+        function addMarker(place) {
+            const marker = new google.maps.Marker({
+                position: { lat: place.location.lat, lng: place.location.lng },
+                map: map,
+                title: place.name
+            });
+
+            const infowindow = new google.maps.InfoWindow({
+                content: `
+                    <div style="padding: 10px;">
+                        <h3 style="margin: 0 0 8px 0; color: #333;">${place.name}</h3>
+                        <p style="margin: 0 0 8px 0; color: #666; font-size: 12px;">${place.address}</p>
+                        ${place.rating ? `<p style="margin: 0 0 8px 0; color: #ff9800; font-weight: bold;">⭐ ${place.rating}/5</p>` : ''}
+                        <a href="${place.mapsUrl}" target="_blank" style="color: #1976d2; text-decoration: none; font-size: 12px;">View on Google Maps</a>
+                    </div>
+                `
+            });
+
+            marker.addListener('click', () => {
+                infowindow.open(map, marker);
+            });
+
+            markers.push(marker);
+        }
+
+        // Initialize Google Maps
+        function initMap() {
+            // Remove loading indicator if it exists
+            const mapLoading = document.getElementById('mapLoading');
+            if (mapLoading) {
+                mapLoading.style.display = 'none';
+            }
+            
+            // Default center (New York)
+            const defaultCenter = { lat: 40.7128, lng: -74.0060 };
+            
+            try {
+                map = new google.maps.Map(document.getElementById('map'), {
+                    zoom: 12,
+                    center: defaultCenter,
+                    styles: [
+                        {
+                            featureType: 'poi',
+                            elementType: 'labels',
+                            stylers: [{ visibility: 'on' }]
+                        }
+                    ]
+                });
+            } catch (error) {
+                console.error('Error initializing map:', error);
+                const mapDiv = document.getElementById('map');
+                mapDiv.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #666;">Failed to load map. Please check your Google Maps API key.</div>';
+            }
+        }
+
+        // Clear all markers
+        function clearMarkers() {
+            markers.forEach(marker => marker.setMap(null));
+            markers = [];
+        }
+
+        // Send message to backend
+        async function sendMessage() {
+            const userInput = document.getElementById('userInput');
+            const sendBtn = document.getElementById('sendBtn');
+            const chatMessages = document.getElementById('chatMessages');
+            
+            const message = userInput.value.trim();
+            if (!message) return;
+
+            // Add user message to chat
+            addMessage(message, 'user');
+            userInput.value = '';
+            sendBtn.disabled = true;
+            sendBtn.textContent = 'Searching...';
+
+            // Show loading
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'loading';
+            loadingDiv.textContent = 'Searching for places...';
+            chatMessages.appendChild(loadingDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            try {
+                const response = await fetch('/api/maps/search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        query: message
+                    })
+                });
+
+                const data = await response.json();
+
+                // Remove loading
+                chatMessages.removeChild(loadingDiv);
+
+                if (response.ok && data.success) {
+                    // Add bot response
+                    let botResponse = `I found ${data.places.length} places for you:\n\n`;
+                    
+                    if (data.places.length === 0) {
+                        botResponse = "I couldn't find any places matching your request. Try being more specific with your query.";
+                        addMessage(botResponse, 'bot');
+                    } else {
+                        data.places.forEach((place, index) => {
+                            botResponse += `${index + 1}. **${place.name}**\n`;
+                            botResponse += `   📍 ${place.address}\n`;
+                            if (place.rating) {
+                                botResponse += `   ⭐ ${place.rating}/5\n`;
+                            }
+                            botResponse += `   🗺️ [View on Map](${place.mapsUrl})\n\n`;
+                        });
+
+                        addMessage(botResponse, 'bot');
+
+                        // Clear previous markers and add new ones
+                        clearMarkers();
+                        data.places.forEach(place => {
+                            addMarker(place);
+                        });
+
+                        // Adjust map view to show all markers
+                        if (data.places.length > 0) {
+                            const bounds = new google.maps.LatLngBounds();
+                            data.places.forEach(place => {
+                                bounds.extend({ lat: place.location.lat, lng: place.location.lng });
+                            });
+                            map.fitBounds(bounds);
+                        }
+                    }
+
+                } else {
+                    const errorMessage = data.error || `Failed to process request: ${response.status} ${response.statusText}`;
+                    addMessage(`Sorry, I couldn't find any places. Error: ${errorMessage}`, 'bot');
+                }
+
+            } catch (error) {
+                chatMessages.removeChild(loadingDiv);
+                addMessage('Sorry, there was an error connecting to the server. Please check that the backend is running and try again.', 'bot');
+                console.error('Network error:', error);
+            }
+
+            sendBtn.disabled = false;
+            sendBtn.textContent = 'Send';
+        }
+
+        // Add message to chat
+        function addMessage(text, sender) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}-message`;
+            
+            // Convert markdown-like syntax to HTML
+            let htmlText = text
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\n/g, '<br>')
+                .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" style="color: inherit;">$1</a>');
+            
+            messageDiv.innerHTML = htmlText;
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Handle Enter key
+        document.getElementById('userInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Initialize map when Google Maps script loads
+        window.initMap = initMap;
+    </script>
+    <script>
+  // Load Google Maps API key secara dynamic
+  async function loadGoogleMaps() {
+    try {
+      const response = await fetch('/api/config');
+      const config = await response.json();
+
+      if (config.googleMapsClientKey) {
+        // Add the callback to the window object to make it globally accessible
+        window.initMap = initMap;
+        
+        const script = document.createElement('script');
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${config.googleMapsClientKey}&callback=initMap&libraries=places&loading=async`;
+        script.async = true;
+        script.defer = true;
+        document.head.appendChild(script);
+      } else {
+        console.error('Google Maps client key not configured');
+      }
+    } catch (error) {
+      console.error('Failed to load Google Maps config:', error);
+    }
+  }
+
+  // Panggil loadGoogleMaps
+  loadGoogleMaps();
+</script>
+</body>
+</html>
