@@ -71,7 +71,12 @@ npm install
 
 ### 3. Environment Configuration
 
-Create a `.env` file in the root directory:
+Create a `.env` file in the root directory based on the `.env.example` file:
+```bash
+cp .env.example .env
+```
+
+Then edit the `.env` file to add your actual API keys and configuration values:
 ```env
 # Google Maps API Configuration
 GOOGLE_MAPS_API_KEY=your_server_api_key
